@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mini SIEM</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:#050d1a;
+    color:#e6edf3;
+}
+
+/* SIDEBAR */
+.sidebar{
+    width:180px;
+    height:100vh;
+    position:fixed;
+    background:#020617;
+    padding:15px;
+}
+
+.sidebar h2{color:#3b82f6;}
+
+.sidebar a{
+    display:block;
+    padding:10px;
+    margin:5px 0;
+    color:#94a3b8;
+    cursor:pointer;
+}
+
+.sidebar a.active,
+.sidebar a:hover{color:#3b82f6;}
+
+/* MAIN */
+.main{
+    margin-left:200px;
+    padding:15px;
+}
+
+/* CARDS */
+.cards{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+}
+
+.card{
+    background:#020617;
+    padding:10px;
+    border:1px solid #1e293b;
+    border-radius:8px;
+}
+
+/* PANELS */
+.panel{
+    background:#020617;
+    padding:10px;
+    border:1px solid #1e293b;
+    border-radius:8px;
+    margin-top:10px;
+}
+
+/* TABLE */
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:8px;
+    border-bottom:1px solid #1e293b;
+}
+
+/* BADGES */
+.badge{
+    padding:4px 8px;
+    border-radius:6px;
+    font-size:10px;
+    font-weight:bold;
+}
+
+.critical{background:#ef4444;}
+.high{background:#f97316;}
+.medium{background:#eab308;}
+.low{background:#22c55e;}
+
+/* MATRIX */
+.matrix{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:8px;
+}
+
+.matrix div{
+    background:#111827;
+    padding:5px;
+    border-radius:4px;
+    font-size:10px;
+}
+
+/* INPUTS */
+input, select {
+    outline:none;
+    padding:6px;
+    background:#111827;
+    border:1px solid #1e293b;
+    color:white;
+    border-radius:6px;
+}
+/* 🔥 NEW CLEAN MITRE STYLE */
+.matrix-clean{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+}
+
+.matrix-clean > div{
+    background:#020617;
+    border:1px solid #1e293b;
+    padding:8px;
+    border-radius:6px;
+}
+
+.matrix-clean h5{
+    font-size:11px;
+    color:#3b82f6;
+    margin-bottom:5px;
+}
+
+.matrix-clean div div{
+    font-size:10px;
+    margin:3px 0;
+    padding:3px;
+    background:#111827;
+    border-radius:4px;
+}
+.heatmap{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:10px;
+}
+
+.heatmap .col{
+    background:#020617;
+    border:1px solid #1e293b;
+    border-radius:6px;
+    padding:8px;
+}
+
+.heatmap h5{
+    color:#3b82f6;
+    font-size:11px;
+    margin-bottom:6px;
+}
+
+.cell{
+    font-size:10px;
+    padding:4px;
+    margin:3px 0;
+    border-radius:4px;
+    text-align:center;
+    background:#111827;
+}
+
+/* 🔥 intensity levels */
+.low{ background:#1f2937; }
+.medium{ background:#f59e0b; color:black; }
+.high{ background:#ef4444; }
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+<h2>Mini SIEM</h2>
+
+<a onclick="showPage(event,'dashboard')" class="active">Dashboard</a>
+<a onclick="showPage(event,'alerts')">Alerts</a>
+<a onclick="showPage(event,'logs')">Logs</a>
+<a onclick="showPage(event,'mitre')">MITRE</a>
+</div>
+
+<div class="main">
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboardSection">
+
+<h2>Dashboard</h2>
+
+<div class="cards">
+<div class="card"><h4>Total</h4><h2 id="total">0</h2></div>
+<div class="card"><h4>Critical</h4><h2 id="critical">0</h2></div>
+<div class="card"><h4>High</h4><h2 id="high">0</h2></div>
+<div class="card"><h4>IPs</h4><h2 id="ips">0</h2></div>
+</div>
+
+<div style="display:grid;grid-template-columns:3fr 1fr;gap:15px;margin-top:15px;">
+
+<div>
+
+<div class="panel">
+<h4>Alerts Over Time</h4>
+<canvas id="lineChart"></canvas>
+</div>
+
+<div class="panel">
+<h4>Attack Map</h4>
+<div id="map" style="height:200px;background:url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg');background-size:cover;position:relative;"></div>
+</div>
+
+</div>
+
+<div class="panel">
+<h4>Live Alerts</h4>
+<div id="live" style="height:350px;overflow:auto;"></div>
+</div>
+
+</div>
+
+</div>
+
+<!-- ================= ALERTS ================= -->
+<div id="alertsSection" style="display:none;">
+
+<h2>Alerts</h2>
+
+<div class="cards">
+<div class="card"><h4>Total Alerts</h4><h2 id="a_total">0</h2></div>
+<div class="card"><h4>Critical</h4><h2 id="a_critical">0</h2></div>
+<div class="card"><h4>High</h4><h2 id="a_high">0</h2></div>
+<div class="card"><h4>Low</h4><h2 id="a_low">0</h2></div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="panel" style="display:flex;gap:10px;align-items:center;">
+
+<input id="searchInput" placeholder="Search IP / Type...">
+
+<select id="severityFilter">
+<option value="ALL">All</option>
+<option value="CRITICAL">Critical</option>
+<option value="HIGH">High</option>
+<option value="LOW">Low</option>
+</select>
+
+<!-- 🔥 FIX: call applyFilter instead -->
+<button onclick="applyFilter()" style="background:#3b82f6;border:none;padding:6px 10px;border-radius:6px;color:white;">
+Apply
+</button>
+
+</div>
+
+<div class="panel">
+
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Type</th>
+<th>IP</th>
+<th>Severity</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="alertsTable"></tbody>
+
+</table>
+
+</div>
+
+</div>
+<!-- ================= LOGS ================= -->
+<div id="logsSection" style="display:none;">
+<h2>Logs</h2>
+<div class="panel"><pre id="logsContent"></pre></div>
+</div>
+
+<!-- ================= MITRE ================= -->
+<div id="mitreSection" style="display:none;">
+
+<h2>MITRE ATT&CK</h2>
+
+<!-- KPI CARDS -->
+<div class="cards">
+    <div class="card">
+        <h4>Total Alerts</h4>
+        <h2 id="m_total">0</h2>
+    </div>
+
+    <div class="card">
+        <h4>Credential Access</h4>
+        <h2 id="m_access">0</h2>
+    </div>
+
+    <div class="card">
+        <h4>Recon</h4>
+        <h2 id="m_recon">0</h2>
+    </div>
+
+    <div class="card">
+        <h4>Impact</h4>
+        <h2 id="m_impact">0</h2>
+    </div>
+</div>
+
+<!-- MAIN GRID -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:15px;margin-top:15px;">
+
+<!-- LEFT -->
+<div>
+
+<div class="panel">
+    <h4>MITRE Techniques</h4>
+
+    <div class="matrix-clean">
+
+        <div><h5>Recon</h5><div id="recon_tech"></div></div>
+        <div><h5>Access</h5><div id="access_tech"></div></div>
+        <div><h5>Execution</h5><div id="exec_tech"></div></div>
+        <div><h5>Persistence</h5><div id="persist_tech"></div></div>
+        <div><h5>Privilege</h5><div id="priv_tech"></div></div>
+        <div><h5>Impact</h5><div id="impact_tech"></div></div>
+
+    </div>
+</div>
+
+</div>
+
+<!-- RIGHT -->
+<div>
+
+<div class="panel">
+    <h4>MITRE ATT&CK Heatmap</h4>
+
+    <div class="heatmap">
+
+        <div class="col"><h5>Recon</h5><div id="recon_heat"></div></div>
+        <div class="col"><h5>Access</h5><div id="access_heat"></div></div>
+        <div class="col"><h5>Execution</h5><div id="exec_heat"></div></div>
+        <div class="col"><h5>Persistence</h5><div id="persist_heat"></div></div>
+        <div class="col"><h5>Privilege</h5><div id="priv_heat"></div></div>
+        <div class="col"><h5>Impact</h5><div id="impact_heat"></div></div>
+
+    </div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<script>
+
+let chart, mitreChart;
+
+// NAVIGATION
+function showPage(event,page){
+    document.querySelectorAll(".main > div").forEach(d=>d.style.display="none");
+    document.getElementById(page+"Section").style.display="block";
+
+    document.querySelectorAll(".sidebar a").forEach(a=>a.classList.remove("active"));
+    event.target.classList.add("active");
+
+    if(page==="alerts") loadAlerts();
+    if(page==="logs") loadLogs();
+    if(page==="mitre") loadMitre();
+}
+
+// ================= GLOBAL =================
+let alertsData = [];
+
+
+// ================= SHARED SEVERITY =================
+function getSeverity(type){
+    if(type === "SQL_INJECTION" || type === "XSS_ATTACK"){
+        return "CRITICAL";
+    }
+    if(type === "FAILED_LOGIN" || type === "PORT_SCAN" || type === "SCANNER_ACTIVITY"){
+        return "HIGH";
+    }
+    return "LOW";
+}
+
+
+// ================= DASHBOARD =================
+function loadDashboard(){
+
+    fetch('/api/alerts')
+    .then(res => res.json())
+    .then(data => {
+
+        const live = document.getElementById("live");
+        const map = document.getElementById("map");
+        const total = document.getElementById("total");
+        const criticalEl = document.getElementById("critical");
+        const highEl = document.getElementById("high");
+        const ipsEl = document.getElementById("ips");
+        const canvas = document.getElementById("lineChart"); // 🔥 ADD
+
+        if(!live || !map || !total) return;
+
+        live.innerHTML = "";
+        map.innerHTML = "";
+
+        let uniqueIPs = new Set();
+        let critical = 0;
+        let high = 0;
+
+        data.forEach(a => {
+
+            if(!a.ip) return;
+
+            uniqueIPs.add(a.ip);
+
+            let severity = getSeverity(a.type);
+
+            if(severity === "CRITICAL") critical++;
+            if(severity === "HIGH") high++;
+
+            let div = document.createElement("div");
+            div.innerText = "[" + severity + "] " + a.type + " - " + a.ip;
+            div.style.color = "#ef4444";
+            div.style.fontSize = "11px";
+
+            live.appendChild(div);
+
+            let dot = document.createElement("div");
+            dot.style.position = "absolute";
+            dot.style.width = "6px";
+            dot.style.height = "6px";
+            dot.style.background = "red";
+            dot.style.borderRadius = "50%";
+            dot.style.left = (Math.random()*90) + "%";
+            dot.style.top = (Math.random()*90) + "%";
+
+            map.appendChild(dot);
+        });
+
+        total.innerText = data.length;
+        if(criticalEl) criticalEl.innerText = critical;
+        if(highEl) highEl.innerText = high;
+        if(ipsEl) ipsEl.innerText = uniqueIPs.size;
+
+        // ================= 🔥 CHART FIX =================
+        try {
+
+            if(canvas && window.Chart){
+
+                const ctx = canvas.getContext("2d");
+
+                // destroy old chart (important)
+                if(chart){
+                    chart.destroy();
+                }
+
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map((_, i) => i + 1),
+                        datasets: [{
+                            label: "Alerts Over Time",
+                            data: data.map((_, i) => i + 1),
+                            borderColor: "#38bdf8",
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }]
+                    },
+                    options:{
+                        responsive: true,
+                        plugins:{ legend:{display:false} }
+                    }
+                });
+            }
+
+        } catch(e){
+            console.error("Chart error:", e);
+        }
+
+    });
+}
+
+// ================= ALERTS =================
+function loadAlerts(){
+
+    fetch('/api/alerts')
+    .then(res => res.json())
+    .then(data => {
+
+        alertsData = data;
+
+        renderAlerts(data);
+    });
+}
+
+
+// ================= RENDER ALERTS =================
+function renderAlerts(data){
+
+    const table = document.getElementById("alertsTable");
+
+    const totalEl = document.getElementById("a_total");
+    const criticalEl = document.getElementById("a_critical");
+    const highEl = document.getElementById("a_high");
+    const lowEl = document.getElementById("a_low");
+
+    table.innerHTML = "";
+
+    let total = data.length;
+    let critical = 0;
+    let high = 0;
+    let low = 0;
+
+    data.forEach(a => {
+
+        let severity = getSeverity(a.type);
+
+        if(severity === "CRITICAL") critical++;
+        else if(severity === "HIGH") high++;
+        else low++;
+
+        let row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${new Date().toLocaleTimeString()}</td>
+            <td>${severity}</td>
+            <td>${a.type}</td>
+            <td>${a.ip}</td>
+        `;
+
+        table.appendChild(row);
+    });
+
+    if(totalEl) totalEl.innerText = total;
+    if(criticalEl) criticalEl.innerText = critical;
+    if(highEl) highEl.innerText = high;
+    if(lowEl) lowEl.innerText = low;
+}
+
+
+// ================= FILTER =================
+function applyFilter(){
+
+    let search = document.getElementById("searchInput").value.toLowerCase();
+    let severityFilter = document.getElementById("severityFilter").value;
+
+    let filtered = alertsData.filter(a => {
+
+        let severity = getSeverity(a.type);
+
+        let matchSearch =
+            a.type.toLowerCase().includes(search) ||
+            a.ip.includes(search);
+
+        let matchSeverity =
+            severityFilter === "ALL" || severity === severityFilter;
+
+        return matchSearch && matchSeverity;
+    });
+
+    renderAlerts(filtered);
+}
+
+
+// ================= LOGS =================
+function loadLogs(){
+
+    fetch('/api/logs')
+    .then(res => res.json())
+    .then(data => {
+
+        const el = document.getElementById("logsContent");
+
+        if(!Array.isArray(data) || data.length === 0){
+            el.innerText = "No logs found";
+            return;
+        }
+
+        el.innerHTML = "";
+
+        data.forEach(log => {
+
+            let div = document.createElement("div");
+            div.style.fontSize = "11px";
+            div.style.borderBottom = "1px solid #1e293b";
+            div.style.padding = "4px";
+
+            div.innerText = log;
+
+            el.appendChild(div);
+        });
+
+    });
+}
+
+
+// ================= AUTO RUN =================
+setInterval(loadDashboard, 3000);
+setInterval(loadAlerts, 3000);
+// ================= MITRE =================
+
+function getMitreTactic(type){
+    if(type === "FAILED_LOGIN") return "Credential Access";
+    if(type === "PORT_SCAN") return "Recon";
+    if(type === "SQL_INJECTION") return "Execution";
+    if(type === "XSS_ATTACK") return "Execution";
+    if(type === "SCANNER_ACTIVITY") return "Recon";
+    return "Other";
+}
+
+function loadMitre(){
+
+    fetch('/api/alerts')
+    .then(res => res.json())
+    .then(data => {
+
+        let counts = {
+            "Credential Access": 0,
+            "Recon": 0,
+            "Execution": 0,
+            "Persistence": 0,
+            "Privilege": 0,
+            "Impact": 0
+        };
+
+        data.forEach(a => {
+            let t = getMitreTactic(a.type);
+            if(counts[t] !== undefined){
+                counts[t]++;
+            }
+        });
+
+        // ===== CARDS =====
+        document.getElementById("m_total").innerText = data.length;
+        document.getElementById("m_access").innerText = counts["Credential Access"];
+        document.getElementById("m_recon").innerText = counts["Recon"];
+        document.getElementById("m_impact").innerText = counts["Impact"];
+
+        // ===== TECHNIQUES =====
+        document.getElementById("recon_tech").innerText = "T1046 (" + counts["Recon"] + ")";
+        document.getElementById("access_tech").innerText = "T1110 (" + counts["Credential Access"] + ")";
+        document.getElementById("exec_tech").innerText = "T1059 (" + counts["Execution"] + ")";
+        document.getElementById("persist_tech").innerText = "T1547 (" + counts["Persistence"] + ")";
+        document.getElementById("priv_tech").innerText = "T1068 (" + counts["Privilege"] + ")";
+        document.getElementById("impact_tech").innerText = "T1499 (" + counts["Impact"] + ")";
+
+        // ===== HEATMAP =====
+        function heat(id, val){
+            let el = document.getElementById(id);
+            if(el){
+                el.style.height = "20px";
+                el.style.background = `rgba(239,68,68,${Math.min(val * 0.2, 1)})`;
+            }
+        }
+
+        heat("recon_heat", counts["Recon"]);
+        heat("access_heat", counts["Credential Access"]);
+        heat("exec_heat", counts["Execution"]);
+        heat("persist_heat", counts["Persistence"]);
+        heat("priv_heat", counts["Privilege"]);
+        heat("impact_heat", counts["Impact"]);
+
+    })
+    .catch(err => console.error("MITRE ERROR:", err));
+}
+// ================= AUTO RUN =================
+loadDashboard();        // 🔥 runs immediately
+setInterval(loadDashboard, 3000);
+
+setInterval(loadAlerts, 3000);
+</script>
+
+
+</body>
+</html>

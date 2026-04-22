@@ -1,0 +1,36 @@
+# ================= PYTHON =================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# ================= LOG FILES =================
+*.log
+logs/
+system.log
+
+# ================= ENV FILES =================
+.env
+
+# ================= OS FILES =================
+.DS_Store
+Thumbs.db
+
+# ================= IDE =================
+.vscode/
+.idea/
+
+# ================= NODE (if any frontend tools) =================
+node_modules/
+
+# ================= CACHE =================
+*.cache
+
+# ================= TEMP =================
+*.tmp
